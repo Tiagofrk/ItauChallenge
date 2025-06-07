@@ -7,15 +7,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D3DC8173-18A
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{740B7182-3EAF-4D0D-8B81-D2BE6DE6F951}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ItauChallenge.Application", "ItauChallenge.Application\ItauChallenge.Application.csproj", "{D1B34CFC-0260-4BBD-8286-C3C69B2FDA57}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ItauChallenge.Application", "src\ItauChallenge.Application\ItauChallenge.Application.csproj", "{D1B34CFC-0260-4BBD-8286-C3C69B2FDA57}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ItauChallenge.Domain", "ItauChallenge.Domain\ItauChallenge.Domain.csproj", "{FD06365D-EF8F-4C94-B3E2-F0FDE4881103}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ItauChallenge.Domain", "src\ItauChallenge.Domain\ItauChallenge.Domain.csproj", "{FD06365D-EF8F-4C94-B3E2-F0FDE4881103}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ItauChallenge.Infra", "ItauChallenge.Infra\ItauChallenge.Infra.csproj", "{761EFF0F-1DF5-4AC1-B07A-1DA10BA79EC9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ItauChallenge.Infra", "src\ItauChallenge.Infra\ItauChallenge.Infra.csproj", "{761EFF0F-1DF5-4AC1-B07A-1DA10BA79EC9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ItauChallenge.Application.Tests", "ItauChallenge.Application.Tests\ItauChallenge.Application.Tests.csproj", "{A7EEF977-FE45-4386-964D-E64E9081E336}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ItauChallenge.Application.Tests", "test\ItauChallenge.Application.Tests\ItauChallenge.Application.Tests.csproj", "{A7EEF977-FE45-4386-964D-E64E9081E336}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ItauChallenge.Infra.Tests", "ItauChallenge.Infra.Tests\ItauChallenge.Infra.Tests.csproj", "{A058EE61-2DB5-4B89-9905-6C99D65648F9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ItauChallenge.Infra.Tests", "test\ItauChallenge.Infra.Tests\ItauChallenge.Infra.Tests.csproj", "{A058EE61-2DB5-4B89-9905-6C99D65648F9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
