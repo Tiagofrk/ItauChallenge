@@ -257,23 +257,16 @@ namespace ItauChallenge.Infra
             // UPDATE pos SET updated_dth = p_quote_dth WHERE asset_id = p_asset_id;
             // This SP is meant to be called when a new quote arrives.
             // The request for this specific method `UpdateClientPositionsAsync` seems to be a direct client positions update based on new price,
-            // which is different from the SP's current simple role of updating `updated_dth`.
-            //
-            // Let's assume the task means to call the existing Stored Procedure 'UpdateClientPositions'
-            // as defined in the SQL script, which updates `updated_dth`.
-            // The SP also takes `p_quote_dth` as a parameter. We'll use `DateTime.UtcNow`.
+            const string query = @"
+        UPDATE pos p
+        SET p.pos_pl = (p.pos_quantity * @NewPrice) - (p.pos_quantity * p.pos_avg_price)
+        WHERE p.pos_ast_id = @AssetId;";
 
-            const string procedureName = "UpdateClientPositions";
-
-            using (var connection = new MySqlConnection(_connectionString))
-            {
-                await connection.ExecuteAsync(
-                    procedureName,
-                    new { p_asset_id = assetId, p_new_price = newPrice, p_quote_dth = DateTime.UtcNow },
-                    commandType: CommandType.StoredProcedure
-                );
-            }
-        }
+    using (var connection = new MySqlConnection(_connectionString))
+    {
+        await connection.ExecuteAsync(query, new { NewPrice = newPrice, AssetId = assetId });
+    }
+}
 
         // New methods for API controllers
         public async Task<Quote> GetLatestQuoteAsync(int assetId)

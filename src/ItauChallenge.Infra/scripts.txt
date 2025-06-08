@@ -1,94 +1,59 @@
--- Tabela de usuários
-CREATE TABLE usr (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    created_dth DATETIME(6) NOT NULL
+-- Tabela de Usuários
+CREATE TABLE IF NOT EXISTS usr (
+    usr_id INT AUTO_INCREMENT PRIMARY KEY, -- INT é suficiente para um ID, AUTO_INCREMENT para simplicidade.
+    usr_name VARCHAR(255) NOT NULL,       -- VARCHAR para nomes de tamanho variável.
+    usr_email VARCHAR(255) NOT NULL UNIQUE, -- UNIQUE para garantir que não haja emails duplicados.
+    usr_brokerage_pct DECIMAL(5, 4) NOT NULL -- DECIMAL é o tipo correto para valores monetários/percentuais para evitar erros de ponto flutuante. (5,4) permite valores como 0.1234 (12,34%).
 );
 
--- Tabela de ativos financeiros
-CREATE TABLE ast (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    ticker VARCHAR(20) UNIQUE NOT NULL, -- Símbolo do ativo (ex: PETR4, AAPL)
-    name VARCHAR(255) NOT NULL, -- Nome da empresa ou do ativo
-    type VARCHAR(50), -- Tipo de ativo (ex: Ação, FII, BDR)
-    created_dth DATETIME(6) NOT NULL
+-- Tabela de Ativos
+CREATE TABLE IF NOT EXISTS ast (
+    ast_id INT AUTO_INCREMENT PRIMARY KEY,
+    ast_code VARCHAR(10) NOT NULL UNIQUE,  -- Códigos de ativo (ex: ITSA4, KDIF11) são curtos e alfanuméricos. UNIQUE para não repetir ativos.
+    ast_name VARCHAR(255) NOT NULL        -- Nome completo do ativo.
 );
 
--- Tabela de operações (compras e vendas)
-CREATE TABLE op (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    asset_id INT NOT NULL,
-    type ENUM('Compra', 'Venda') NOT NULL, -- Tipo da operação
-    quantity INT NOT NULL, -- Quantidade de ativos negociados
-    price DECIMAL(18, 2) NOT NULL, -- Preço unitário do ativo na operação
-    operation_dth DATETIME(6) NOT NULL, -- Data e hora da operação
-    created_dth DATETIME(6) NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES usr(id),
-    FOREIGN KEY (asset_id) REFERENCES ast(id)
+-- Tabela de Operações
+CREATE TABLE IF NOT EXISTS op (
+    op_id BIGINT AUTO_INCREMENT PRIMARY KEY,          -- BIGINT para suportar um grande volume de operações (1 milhão/dia).
+    op_usr_id INT NOT NULL,                           -- Chave estrangeira para a tabela de usuários.
+    op_ast_id INT NOT NULL,                           -- Chave estrangeira para a tabela de ativos.
+    op_quantity INT NOT NULL,                         -- Quantidade de ativos na operação.
+    op_unit_price DECIMAL(18, 8) NOT NULL,            -- Preço com alta precisão, comum em mercado financeiro.
+    op_operation_type ENUM('Compra', 'Venda') NOT NULL, -- ENUM para restringir os valores a 'Compra' ou 'Venda'.
+    op_brokerage DECIMAL(10, 2) NOT NULL,             -- Valor da corretagem, tipo DECIMAL para precisão monetária.
+    op_dth DATETIME(6) NOT NULL,                      -- DATETIME(6) para registrar data e hora com precisão de microssegundos, importante para cotações.
+    FOREIGN KEY (op_usr_id) REFERENCES usr(usr_id),
+    FOREIGN KEY (op_ast_id) REFERENCES ast(ast_id)
 );
 
--- Tabela de cotações de ativos
-CREATE TABLE qtt (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    asset_id INT NOT NULL,
-    price DECIMAL(18, 2) NOT NULL, -- Preço da cotação
-    quote_dth DATETIME(6) NOT NULL, -- Data e hora da cotação
-    created_dth DATETIME(6) NOT NULL,
-    FOREIGN KEY (asset_id) REFERENCES ast(id)
+-- Tabela de Cotações
+CREATE TABLE IF NOT EXISTS qtt (
+    qtt_id BIGINT AUTO_INCREMENT PRIMARY KEY,          -- BIGINT para o alto volume de cotações.
+    qtt_ast_id INT NOT NULL,
+    qtt_unit_price DECIMAL(18, 8) NOT NULL,           -- Alta precisão para o preço.
+    qtt_dth DATETIME(6) NOT NULL,                     -- Precisão de microssegundos é crucial aqui.
+    FOREIGN KEY (qtt_ast_id) REFERENCES ast(ast_id)
 );
 
--- Tabela de posição do cliente (para consolidar os ativos e o preço médio)
-CREATE TABLE pos (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    asset_id INT NOT NULL,
-    quantity INT NOT NULL, -- Quantidade total do ativo que o cliente possui
-    average_price DECIMAL(18, 2) NOT NULL, -- Preço médio de compra do ativo
-    updated_dth DATETIME(6) NOT NULL, -- Última atualização da posição
-    created_dth DATETIME(6) NOT NULL,
-    UNIQUE (user_id, asset_id), -- Garante que cada usuário tenha apenas uma posição por ativo
-    FOREIGN KEY (user_id) REFERENCES usr(id),
-    FOREIGN KEY (asset_id) REFERENCES ast(id)
+-- Tabela de Posição do Cliente
+CREATE TABLE IF NOT EXISTS pos (
+    pos_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    pos_usr_id INT NOT NULL,
+    pos_ast_id INT NOT NULL,
+    pos_quantity INT NOT NULL,
+    pos_avg_price DECIMAL(18, 8) NOT NULL,           -- Preço médio precisa da mesma precisão dos preços de operação/cotação.
+    pos_pl DECIMAL(18, 2) NOT NULL,                  -- P&L (Profit & Loss) é um valor financeiro.
+    UNIQUE (pos_usr_id, pos_ast_id),                 -- Garante que um usuário só tenha uma linha de posição por ativo.
+    FOREIGN KEY (pos_usr_id) REFERENCES usr(usr_id),
+    FOREIGN KEY (pos_ast_id) REFERENCES ast(ast_id)
 );
 
--- Tabela para rastrear mensagens processadas (para idempotência do Kafka consumer)
-CREATE TABLE processed_messages (
-    message_id VARCHAR(255) PRIMARY KEY,
-    processed_dth DATETIME(6) NOT NULL
-);
 
--- Store Procedure para atualizar posições ao salvar uma nova cotação
-DELIMITER //
+-- criação do index
+CREATE INDEX IF NOT EXISTS idx_op_usr_ast_dth ON op (op_usr_id, op_ast_id, op_dth DESC);
 
-CREATE PROCEDURE UpdateClientPositions(
-    IN p_asset_id INT,
-    IN p_new_price DECIMAL(18, 2),
-    IN p_quote_dth DATETIME(6)
-)
-BEGIN
-    -- Atualiza a tabela de posições (pos) com o novo preço do ativo.
-    -- Esta SP é chamada após uma nova cotação ser inserida na tabela 'qtt'.
-
-    -- Atualiza o preço médio e a data de atualização para todos os usuários que possuem o ativo.
-    -- A lógica do preço médio aqui é simplificada para refletir o último preço,
-    -- uma lógica mais complexa poderia ser implementada se o preço médio devesse ser histórico.
-    UPDATE pos
-    SET
-        -- average_price = p_new_price, -- Se o preço médio devesse ser o último preço da cotação
-        updated_dth = p_quote_dth
-    WHERE
-        asset_id = p_asset_id;
-
-    -- Exemplo de como poderia ser uma atualização de valor de posição (não diretamente no preço médio de compra):
-    -- Para cada usuário com posição no ativo, recalcularia o valor atual da posição.
-    -- Esta parte é mais para um cálculo em tempo de consulta ou um campo adicional 'current_value'.
-    -- Para o propósito deste exemplo, focamos em atualizar a 'updated_dth' e potencialmente o 'average_price'
-    -- se a regra de negócio assim o definir.
-
-    -- Placeholder para lógicas adicionais, como registrar histórico de valorização, etc.
-
-END //
-
-DELIMITER ;
+-- SQL para ser executado (lógica conceitual)
+-- UPDATE pos p
+-- SET p.pos_pl = (p.pos_quantity * ? -- (novo_preco_cotacao) ) - (p.pos_quantity * p.pos_avg_price)
+-- WHERE p.pos_ast_id = ? -- (ID do ativo da nova cotação)
