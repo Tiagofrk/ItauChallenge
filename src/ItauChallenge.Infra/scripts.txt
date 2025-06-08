@@ -1,0 +1,94 @@
+-- Tabela de usuários
+CREATE TABLE usr (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    created_dth DATETIME(6) NOT NULL
+);
+
+-- Tabela de ativos financeiros
+CREATE TABLE ast (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ticker VARCHAR(20) UNIQUE NOT NULL, -- Símbolo do ativo (ex: PETR4, AAPL)
+    name VARCHAR(255) NOT NULL, -- Nome da empresa ou do ativo
+    type VARCHAR(50), -- Tipo de ativo (ex: Ação, FII, BDR)
+    created_dth DATETIME(6) NOT NULL
+);
+
+-- Tabela de operações (compras e vendas)
+CREATE TABLE op (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    asset_id INT NOT NULL,
+    type ENUM('Compra', 'Venda') NOT NULL, -- Tipo da operação
+    quantity INT NOT NULL, -- Quantidade de ativos negociados
+    price DECIMAL(18, 2) NOT NULL, -- Preço unitário do ativo na operação
+    operation_dth DATETIME(6) NOT NULL, -- Data e hora da operação
+    created_dth DATETIME(6) NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES usr(id),
+    FOREIGN KEY (asset_id) REFERENCES ast(id)
+);
+
+-- Tabela de cotações de ativos
+CREATE TABLE qtt (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT NOT NULL,
+    price DECIMAL(18, 2) NOT NULL, -- Preço da cotação
+    quote_dth DATETIME(6) NOT NULL, -- Data e hora da cotação
+    created_dth DATETIME(6) NOT NULL,
+    FOREIGN KEY (asset_id) REFERENCES ast(id)
+);
+
+-- Tabela de posição do cliente (para consolidar os ativos e o preço médio)
+CREATE TABLE pos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    asset_id INT NOT NULL,
+    quantity INT NOT NULL, -- Quantidade total do ativo que o cliente possui
+    average_price DECIMAL(18, 2) NOT NULL, -- Preço médio de compra do ativo
+    updated_dth DATETIME(6) NOT NULL, -- Última atualização da posição
+    created_dth DATETIME(6) NOT NULL,
+    UNIQUE (user_id, asset_id), -- Garante que cada usuário tenha apenas uma posição por ativo
+    FOREIGN KEY (user_id) REFERENCES usr(id),
+    FOREIGN KEY (asset_id) REFERENCES ast(id)
+);
+
+-- Tabela para rastrear mensagens processadas (para idempotência do Kafka consumer)
+CREATE TABLE processed_messages (
+    message_id VARCHAR(255) PRIMARY KEY,
+    processed_dth DATETIME(6) NOT NULL
+);
+
+-- Store Procedure para atualizar posições ao salvar uma nova cotação
+DELIMITER //
+
+CREATE PROCEDURE UpdateClientPositions(
+    IN p_asset_id INT,
+    IN p_new_price DECIMAL(18, 2),
+    IN p_quote_dth DATETIME(6)
+)
+BEGIN
+    -- Atualiza a tabela de posições (pos) com o novo preço do ativo.
+    -- Esta SP é chamada após uma nova cotação ser inserida na tabela 'qtt'.
+
+    -- Atualiza o preço médio e a data de atualização para todos os usuários que possuem o ativo.
+    -- A lógica do preço médio aqui é simplificada para refletir o último preço,
+    -- uma lógica mais complexa poderia ser implementada se o preço médio devesse ser histórico.
+    UPDATE pos
+    SET
+        -- average_price = p_new_price, -- Se o preço médio devesse ser o último preço da cotação
+        updated_dth = p_quote_dth
+    WHERE
+        asset_id = p_asset_id;
+
+    -- Exemplo de como poderia ser uma atualização de valor de posição (não diretamente no preço médio de compra):
+    -- Para cada usuário com posição no ativo, recalcularia o valor atual da posição.
+    -- Esta parte é mais para um cálculo em tempo de consulta ou um campo adicional 'current_value'.
+    -- Para o propósito deste exemplo, focamos em atualizar a 'updated_dth' e potencialmente o 'average_price'
+    -- se a regra de negócio assim o definir.
+
+    -- Placeholder para lógicas adicionais, como registrar histórico de valorização, etc.
+
+END //
+
+DELIMITER ;

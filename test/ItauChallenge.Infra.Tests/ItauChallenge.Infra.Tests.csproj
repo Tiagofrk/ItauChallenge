@@ -14,10 +14,27 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="3.1.1" />
     <PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
+    <PackageReference Include="Dapper" Version="2.1.28" />
+    <PackageReference Include="MySqlConnector" Version="2.3.7" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ItauChallenge.Infra\ItauChallenge.Infra.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.Test.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="..\..\src\ItauChallenge.Infra\scripts.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>scripts.txt</Link>
+    </None>
   </ItemGroup>
 
 </Project>

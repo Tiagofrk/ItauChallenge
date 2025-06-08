@@ -12,4 +12,9 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
     <PackageReference Include="Polly" Version="8.5.2" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ItauChallenge.Infra\ItauChallenge.Infra.csproj" />
+  </ItemGroup>
+
 </Project>
