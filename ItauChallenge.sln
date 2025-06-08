@@ -23,6 +23,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ItauChallenge.QuotesConsume
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ItauChallenge.Api", "src\ItauChallenge.Api\ItauChallenge.Api.csproj", "{C693B8DC-9CEB-44D9-BBD2-0877C064388E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "deployment", "deployment", "{8D88B9A4-788C-4780-9957-E2FDA5A40F8B}"
+	ProjectSection(SolutionItems) = preProject
+		deployment\Dockerfile = deployment\Dockerfile
+		deployment\docker-compose.yml = deployment\docker-compose.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
