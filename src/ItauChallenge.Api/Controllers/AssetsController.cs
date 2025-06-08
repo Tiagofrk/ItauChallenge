@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using ItauChallenge.Api.Dtos;
-using ItauChallenge.Application; // For IResilientQuoteService
+using ItauChallenge.Application; // For IResilientQuoteService (can be kept or removed if not used)
+using ItauChallenge.Infra; // For IDatabaseService
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging; // For ILogger
 
 namespace ItauChallenge.Api.Controllers;
 
@@ -11,55 +13,50 @@ namespace ItauChallenge.Api.Controllers;
 public class AssetsController : ControllerBase
 {
     private readonly ILogger<AssetsController> _logger;
-    private readonly IResilientQuoteService _resilientQuoteService; // Assuming this is registered
+    private readonly IDatabaseService _databaseService;
+    // private readonly IResilientQuoteService _resilientQuoteService; // Keep if needed for other purposes or remove
 
-    public AssetsController(ILogger<AssetsController> logger, IResilientQuoteService resilientQuoteService)
+    public AssetsController(ILogger<AssetsController> logger, IDatabaseService databaseService /*, IResilientQuoteService resilientQuoteService */)
     {
         _logger = logger;
-        _resilientQuoteService = resilientQuoteService;
+        _databaseService = databaseService;
+        // _resilientQuoteService = resilientQuoteService;
     }
 
     // GET /api/v1/assets/{assetId}/quotes/latest
     [HttpGet("{assetId}/quotes/latest")]
     [ProducesResponseType(typeof(LatestQuoteDto), 200)]
-    [ProducesResponseType(404)]
-    [ProducesResponseType(503)] // Service Unavailable (e.g. fallback from circuit breaker)
+    [ProducesResponseType(400)] // Bad Request for parsing errors
+    [ProducesResponseType(404)] // Not Found
     public async Task<IActionResult> GetLatestQuote(string assetId)
     {
-        _logger.LogInformation("API: Requesting latest quote for {AssetId}", assetId);
-        if (string.IsNullOrWhiteSpace(assetId))
+        _logger.LogInformation("API: Requesting latest quote for Asset ID {AssetId} from database", assetId);
+
+        if (!int.TryParse(assetId, out var parsedAssetId))
         {
-            return BadRequest("Asset ID cannot be empty.");
+            return BadRequest("Invalid Asset ID format.");
         }
 
-        // Use the resilient service created in a previous step
-        var quoteString = await _resilientQuoteService.GetLatestQuoteAsync(assetId);
+        var quote = await _databaseService.GetLatestQuoteAsync(parsedAssetId);
 
-        if (quoteString.StartsWith("Fallback:"))
+        if (quote == null)
         {
-            // Simulate a DTO for fallback - real implementation would be more robust
-            var fallbackDto = new LatestQuoteDto
-            {
-                AssetId = assetId,
-                Price = 0, // Or a cached value if available
-                Timestamp = DateTime.UtcNow,
-                Source = quoteString
-            };
-            // For fallbacks indicating service unavailability, 503 is appropriate.
-            // If it's a fallback with stale data, 200 might still be okay with a flag.
-            return StatusCode(503, fallbackDto);
+            _logger.LogWarning("No quote found in database for Asset ID {AssetId}", parsedAssetId);
+            return NotFound($"No quote found for Asset ID {parsedAssetId}.");
         }
 
-        // Simulate creating a DTO from the quoteString.
-        // In a real scenario, _resilientQuoteService would return a structured object.
+        // Fetch asset details (ticker) for the DTO
+        var assetDetails = await _databaseService.GetAssetByIdAsync(parsedAssetId);
+        string ticker = assetDetails?.Ticker ?? assetId; // Use ticker if available, else the original assetId string
+
         var dto = new LatestQuoteDto
         {
-            AssetId = assetId,
-            Price = new Random().Next(10, 500), // Placeholder - extract from quoteString
-            Timestamp = DateTime.UtcNow,
-            Source = "Live API Call" // Placeholder
+            AssetId = ticker, // Display ticker in DTO
+            Price = quote.Price,
+            Timestamp = quote.QuoteDth, // Use the actual quote timestamp
+            Source = "Database"
         };
-        _logger.LogInformation("API: Successfully fetched latest quote for {AssetId}", assetId);
+        _logger.LogInformation("API: Successfully fetched latest quote for Asset ID {AssetId} (Ticker: {Ticker}) from database", parsedAssetId, ticker);
         return Ok(dto);
     }
 }

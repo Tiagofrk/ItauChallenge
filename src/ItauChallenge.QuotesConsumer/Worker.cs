@@ -4,17 +4,31 @@ using Polly.Retry;
 
 namespace ItauChallenge.QuotesConsumer;
 
+using ItauChallenge.Domain; // For Quote, Asset
+using ItauChallenge.Infra;  // For IDatabaseService
+using Microsoft.Extensions.Configuration; // For IConfiguration
+using System.Text.Json;     // For JsonSerializer
+
 public class Worker : BackgroundService
 {
     private readonly ILogger<Worker> _logger;
-    private readonly string _bootstrapServers = "YOUR_KAFKA_BROKER_HERE"; // Placeholder
-    private readonly string _topic = "financial-quotes"; // Example topic name
-    private readonly string _groupId = "quotes-consumer-group"; // Example consumer group
+    private readonly IDatabaseService _databaseService;
+    private readonly IConfiguration _configuration;
+    private readonly string _bootstrapServers;
+    private readonly string _topic;
+    private readonly string _groupId;
     private readonly AsyncRetryPolicy _consumerPolicy;
 
-    public Worker(ILogger<Worker> logger)
+    public Worker(ILogger<Worker> logger, IDatabaseService databaseService, IConfiguration configuration)
     {
         _logger = logger;
+        _databaseService = databaseService;
+        _configuration = configuration;
+
+        // Read Kafka settings from configuration
+        _bootstrapServers = _configuration.GetValue<string>("Kafka:BootstrapServers") ?? "localhost:9092";
+        _topic = _configuration.GetValue<string>("Kafka:Topic") ?? "financial-quotes";
+        _groupId = _configuration.GetValue<string>("Kafka:GroupId") ?? "quotes-consumer-group";
 
         _consumerPolicy = Policy
             .Handle<ConsumeException>()
@@ -112,17 +126,73 @@ public class Worker : BackgroundService
         });
     }
 
-    private async Task ProcessMessageAsync(string message, CancellationToken stoppingToken)
+    private async Task ProcessMessageAsync(string kafkaMessage, CancellationToken stoppingToken)
     {
-        // Simulate message processing and idempotency check
-        _logger.LogInformation("Processing message: {Message}", message);
+        _logger.LogInformation("Attempting to process message: {KafkaMessage}", kafkaMessage);
 
-        // TODO: Implement actual processing logic (e.g., saving to DB)
-        // TODO: Implement idempotency check (e.g., check if message ID already processed)
-        // For now, just a delay to simulate work
-        await Task.Delay(TimeSpan.FromMilliseconds(100), stoppingToken);
+        KafkaMessageDto messageDto;
+        try
+        {
+            messageDto = JsonSerializer.Deserialize<KafkaMessageDto>(kafkaMessage, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (messageDto == null || string.IsNullOrWhiteSpace(messageDto.MessageId) || string.IsNullOrWhiteSpace(messageDto.AssetTicker))
+            {
+                _logger.LogError("Failed to deserialize Kafka message or message is missing required fields: {KafkaMessage}", kafkaMessage);
+                return; // Skip invalid message
+            }
+        }
+        catch (JsonException jsonEx)
+        {
+            _logger.LogError(jsonEx, "JSON Deserialization error for message: {KafkaMessage}", kafkaMessage);
+            return; // Skip malformed message
+        }
 
-        _logger.LogInformation("Finished processing message: {Message}", message);
+        try
+        {
+            // 1. Check for idempotency
+            if (await _databaseService.IsMessageProcessedAsync(messageDto.MessageId))
+            {
+                _logger.LogInformation("Message {MessageId} has already been processed. Skipping.", messageDto.MessageId);
+                return;
+            }
+
+            // 2. Get Asset ID from Ticker
+            var asset = await _databaseService.GetAssetByTickerAsync(messageDto.AssetTicker);
+            if (asset == null)
+            {
+                _logger.LogWarning("Asset with ticker {AssetTicker} not found. Skipping message {MessageId}.", messageDto.AssetTicker, messageDto.MessageId);
+                // Consider sending to a dead-letter queue (DLQ) here if configured
+                return;
+            }
+
+            // 3. Create Quote domain object
+            var quoteDomainObject = new Quote
+            {
+                AssetId = asset.Id,
+                Price = messageDto.Price,
+                QuoteDth = messageDto.Timestamp, // Assuming Timestamp from Kafka is the actual quote time
+                CreatedDth = DateTime.UtcNow    // System timestamp for record creation
+            };
+
+            // 4. Save Quote and MessageId (transactionally)
+            await _databaseService.SaveQuoteAsync(quoteDomainObject, messageDto.MessageId);
+            _logger.LogInformation("Successfully saved quote for AssetId {AssetId} (Ticker: {AssetTicker}), Price: {Price}, MessageId: {MessageId}",
+                asset.Id, asset.Ticker, quoteDomainObject.Price, messageDto.MessageId);
+
+            // 5. Update client positions (calls the SP to update pos.updated_dth)
+            // The SP UpdateClientPositions takes p_asset_id, p_new_price, p_quote_dth
+            await _databaseService.UpdateClientPositionsAsync(quoteDomainObject.AssetId, quoteDomainObject.Price);
+            _logger.LogInformation("Successfully triggered client position update for AssetId {AssetId} with new price {Price}",
+                quoteDomainObject.AssetId, quoteDomainObject.Price);
+
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing message {MessageId} for AssetTicker {AssetTicker}.", messageDto.MessageId, messageDto.AssetTicker);
+            // Depending on the exception, you might want to re-throw to let Polly handle retries,
+            // or if it's a data validation issue that won't resolve with retries, avoid re-throwing.
+            // For critical DB errors, re-throwing might be appropriate.
+            // throw; // Uncomment if retries are desired for this type of exception
+        }
     }
 
     public override async Task StopAsync(CancellationToken stoppingToken)
