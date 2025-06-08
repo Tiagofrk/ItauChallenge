@@ -1,4 +1,5 @@
 using ItauChallenge.Application;
+using ItauChallenge.Infra;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,7 +14,6 @@ builder.Services.AddSingleton<IExternalQuotationService, ExternalQuotationServic
 builder.Services.AddSingleton<IResilientQuoteService, ResilientQuoteService>();   // From ItauChallenge.Application
 
 // Register Infrastructure services
-using ItauChallenge.Infra; // Assuming DatabaseService and IDatabaseService are in this namespace
 builder.Services.AddScoped<IDatabaseService, DatabaseService>();
 
 var app = builder.Build();
