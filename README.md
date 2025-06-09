@@ -80,56 +80,38 @@ Contribuições são bem-vindas! Sinta-se à vontade para enviar um pull request
 
 Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE.txt](LICENSE.txt) para detalhes.
 
-## Running with Docker
+## Easter Eggs
 
-This section describes how to run the application and database using Docker and Docker Compose.
+Aqui detalhamos algumas das mensagens ocultas e seus significados:
 
-### Prerequisites
+### Mensagem Binária Inicial
 
-- Make sure you have Docker Desktop (or Docker Engine with Docker Compose) installed on your system.
+A sequência `01000111 01101111 01110011 01110100 01101111 00100000 01100100 01100101 00100000 01110011 01100101 01110010 00100000 01100011 01101000 01100001 01101101 01100001 01100100 01101111 00100000 01100100 01100101 00100000 01000011 01100001 01101101 01100001 01110010 11000011 10100000` é uma representação de caracteres em código ASCII. Ao converter cada byte para seu caractere correspondente, a mensagem revelada é: "Gosto de ser chamado de Camarada".
 
-### Environment Setup
+### Imagem do Coelho Branco
 
-1.  Navigate to the `deployment` directory:
-    ```bash
-    cd deployment
-    ```
-2.  Create a `.env` file in this directory (`deployment/.env`). This file will store the database password.
-3.  Add the following line to the `.env` file, replacing `yourstrongpassword` with a secure password of your choice:
-    ```
-    DB_PASSWORD=yourstrongpassword
-    ```
-    **Note:** This password will be used for the `root` user of the MySQL database instance.
+A imagem de um coelho branco é uma clara alusão à expressão "seguir o coelho branco", popularizada pelo filme Matrix, que por sua vez se inspira em Alice no País das Maravilhas. Esta pista sugere que há mais para descobrir ou investigar mais a fundo no contexto do desafio.
 
-### How to Build and Run
+### Mensagem Hexadecimal e RLE
 
-1.  Navigate to the root directory of the project (the directory containing the `ItauChallenge.sln` file).
-2.  Run the following command to build the Docker images and start the services (API and database) in detached mode:
-    ```bash
-    docker-compose -f deployment/docker-compose.yml up --build -d
-    ```
-    - The `-f deployment/docker-compose.yml` flag specifies the path to the Docker Compose file.
-    - `--build` forces Docker to rebuild the images if there are any changes in the `Dockerfile` or the application code.
-    - `-d` runs the containers in detached mode (in the background).
+A mensagem em hexadecimal `4120756c74696d61206c696e686120657374c3a120636f6d206f2062696ec3a172696f20656d20524c45` também é decodificada convertendo os valores hexadecimais para caracteres ASCII. O resultado é: "A ultima linha está com o binário em RLE". Isso indica que a próxima etapa de decodificação envolve a técnica de Run-Length Encoding.
 
-### Accessing the Application
+### Decodificação Final do RLE
 
--   **API:** Once the containers are running, the API should be accessible at `http://localhost:8080`.
--   **Database:** The MySQL database will be running on `localhost:3306`. You can connect to it using a database client with the following details:
-    -   **Host:** `localhost`
-    -   **Port:** `3306`
-    -   **User:** `root`
-    -   **Password:** The `DB_PASSWORD` you set in the `.env` file.
-    -   **Database Name:** `itau_challenge_db`
+Esta frase é a instrução para decodificar o grande bloco de dados que vem a seguir. RLE significa Run-Length Encoding, uma técnica de compressão que representa sequências de dados repetidos.
 
-### How to Stop
+O resultado da decodificação desses dados é um fluxo de bits (zeros e uns) que, quando formatado corretamente, revela uma imagem em arte ASCII do coelho branco, que também é mostrado como uma imagem no documento.
 
-1.  Ensure you are in the project root directory.
-2.  To stop and remove the containers, networks, and volumes created by `docker-compose`, run:
-    ```bash
-    docker-compose -f deployment/docker-compose.yml down
-    ```
-    If you want to remove the database data volume as well (all data will be lost), you can use:
-    ```bash
-    docker-compose -f deployment/docker-compose.yml down -v
-    ```
+## Executando com Docker
+
+### Pré-requisitos
+
+- É necessário ter o Docker Compose instalado em seu sistema.
+
+### Como Construir e Executar
+
+1. Navegue até o diretório `C:\Projetos\ItauChallenge\deployment>`.
+2. Execute o seguinte comando para construir as imagens Docker e iniciar os serviços:
+   ```bash
+   docker-compose up --build -d
+   ```
