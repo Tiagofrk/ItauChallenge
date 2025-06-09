@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Serviço do Banco de Dados MySQL
   mysql_db:
@@ -19,7 +17,7 @@ services:
     container_name: itau-api
     build:
       context: ..
-      dockerfile: Dockerfile # This should be Dockerfile, not src/Dockerfile as Dockerfile is in the root
+      dockerfile: deployment/Dockerfile # This should be Dockerfile, not src/Dockerfile as Dockerfile is in the root
     restart: unless-stopped
     ports:
       - "8080:8080" # Mapeia a porta 8080 do container para a 8080 do seu localhost
