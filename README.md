@@ -49,7 +49,7 @@ Este projeto é uma API backend desenvolvida para gerenciar operações financei
    ```bash
    dotnet run
    ```
-   A API deverá estar disponível em `https://localhost:<porta>` ou `http://localhost:<porta>` (verifique o arquivo `Properties/launchSettings.json` no projeto da API para a porta exata).
+   A API deverá estar disponível em `https://localhost:<porta>` ou `http://localhost:<porta>` (verifique o arquivo `Properties/launchSettings.json` no projeto da API para a porta exata). Para testar interativamente os endpoints da API, acesse a interface do Swagger UI, que geralmente é aberta automaticamente ou pode ser acessada adicionando `/swagger` à URL base da aplicação (por exemplo, `http://localhost:<porta>/swagger`).
 
 ## Documentação da API
 
@@ -155,6 +155,9 @@ O resultado da decodificação desses dados é um fluxo de bits (zeros e uns) qu
    ```bash
    docker-compose up --build -d
    ```
+
+Após a execução bem-sucedida dos contêineres, a API estará acessível em `http://localhost:8080` (HTTP) e `https://localhost:8081` (HTTPS).
+A interface do Swagger UI para interagir e testar a API estará disponível em `http://localhost:8080/swagger` ou `https://localhost:8081/swagger`.
 
 ## Contribuindo
 
