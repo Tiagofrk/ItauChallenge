@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using ItauChallenge.Api.Dtos;
-using ItauChallenge.Application; // For IResilientQuoteService (can be kept or removed if not used)
-using ItauChallenge.Infra; // For IDatabaseService
+using ItauChallenge.Contracts.Dtos;
+using ItauChallenge.Application.Services; // Using Application Service Interface
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging; // For ILogger
@@ -13,14 +12,12 @@ namespace ItauChallenge.Api.Controllers;
 public class AssetsController : ControllerBase
 {
     private readonly ILogger<AssetsController> _logger;
-    private readonly IDatabaseService _databaseService;
-    // private readonly IResilientQuoteService _resilientQuoteService; // Keep if needed for other purposes or remove
+    private readonly IAssetApplicationService _assetApplicationService; // Changed dependency
 
-    public AssetsController(ILogger<AssetsController> logger, IDatabaseService databaseService /*, IResilientQuoteService resilientQuoteService */)
+    public AssetsController(ILogger<AssetsController> logger, IAssetApplicationService assetApplicationService) // Changed dependency
     {
-        _logger = logger;
-        _databaseService = databaseService;
-        // _resilientQuoteService = resilientQuoteService;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _assetApplicationService = assetApplicationService ?? throw new ArgumentNullException(nameof(assetApplicationService));
     }
 
     // GET /api/v1/assets/{assetId}/quotes/latest
@@ -30,33 +27,27 @@ public class AssetsController : ControllerBase
     [ProducesResponseType(404)] // Not Found
     public async Task<IActionResult> GetLatestQuote(string assetId)
     {
-        _logger.LogInformation("API: Requesting latest quote for Asset ID {AssetId} from database", assetId);
-
-        if (!int.TryParse(assetId, out var parsedAssetId))
+        _logger.LogInformation("API: Requesting latest quote for Asset ID {AssetId}", assetId);
+        try
         {
-            return BadRequest("Invalid Asset ID format.");
+            var latestQuoteDto = await _assetApplicationService.GetLatestQuoteAsync(assetId).ConfigureAwait(false);
+            if (latestQuoteDto == null)
+            {
+                _logger.LogWarning("No quote found for Asset ID {AssetId} via application service.", assetId);
+                return NotFound($"No quote found for Asset ID {assetId}.");
+            }
+            _logger.LogInformation("API: Successfully fetched latest quote for Asset ID {AssetId}", assetId);
+            return Ok(latestQuoteDto);
         }
-
-        var quote = await _databaseService.GetLatestQuoteAsync(parsedAssetId);
-
-        if (quote == null)
+        catch (FormatException ex)
         {
-            _logger.LogWarning("No quote found in database for Asset ID {AssetId}", parsedAssetId);
-            return NotFound($"No quote found for Asset ID {parsedAssetId}.");
+            _logger.LogWarning(ex, "Invalid Asset ID format for {AssetId}", assetId);
+            return BadRequest(ex.Message);
         }
-
-        // Fetch asset details (ticker) for the DTO
-        var assetDetails = await _databaseService.GetAssetByIdAsync(parsedAssetId);
-        string ticker = assetDetails?.Ticker ?? assetId; // Use ticker if available, else the original assetId string
-
-        var dto = new LatestQuoteDto
+        catch (Exception ex) // Catch other potential exceptions from the service layer
         {
-            AssetId = ticker, // Display ticker in DTO
-            Price = quote.Price,
-            Timestamp = quote.QuoteDth, // Use the actual quote timestamp
-            Source = "Database"
-        };
-        _logger.LogInformation("API: Successfully fetched latest quote for Asset ID {AssetId} (Ticker: {Ticker}) from database", parsedAssetId, ticker);
-        return Ok(dto);
+            _logger.LogError(ex, "An error occurred while fetching latest quote for Asset ID {AssetId}", assetId);
+            return StatusCode(500, "An internal server error occurred.");
+        }
     }
 }

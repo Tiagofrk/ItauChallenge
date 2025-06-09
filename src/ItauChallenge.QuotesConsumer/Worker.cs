@@ -1,29 +1,41 @@
 using Confluent.Kafka;
 using Polly;
 using Polly.Retry;
+using ItauChallenge.Domain.Repositories;
+using ItauChallenge.Application.Services; // Added for IKafkaMessageProcessorService
 
 namespace ItauChallenge.QuotesConsumer;
 
 using ItauChallenge.Domain; // For Quote, Asset
-using ItauChallenge.Infra;  // For IDatabaseService
+// using ItauChallenge.Infra;  // IDatabaseService might not be needed directly if specific repositories are used
 using Microsoft.Extensions.Configuration; // For IConfiguration
 using System.Text.Json;     // For JsonSerializer
+using System; // For ArgumentNullException
 
 public class Worker : BackgroundService
 {
     private readonly ILogger<Worker> _logger;
-    private readonly IDatabaseService _databaseService;
     private readonly IConfiguration _configuration;
+    private readonly IKafkaMessageProcessorService _kafkaMessageProcessorService;
+    private readonly IAssetRepository _assetRepository;
+    private readonly IPositionRepository _positionRepository;
     private readonly string _bootstrapServers;
     private readonly string _topic;
     private readonly string _groupId;
     private readonly AsyncRetryPolicy _consumerPolicy;
 
-    public Worker(ILogger<Worker> logger, IDatabaseService databaseService, IConfiguration configuration)
+    public Worker(
+        ILogger<Worker> logger,
+        IConfiguration configuration,
+        IKafkaMessageProcessorService kafkaMessageProcessorService,
+        IAssetRepository assetRepository,
+        IPositionRepository positionRepository)
     {
-        _logger = logger;
-        _databaseService = databaseService;
-        _configuration = configuration;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        _kafkaMessageProcessorService = kafkaMessageProcessorService ?? throw new ArgumentNullException(nameof(kafkaMessageProcessorService));
+        _assetRepository = assetRepository ?? throw new ArgumentNullException(nameof(assetRepository));
+        _positionRepository = positionRepository ?? throw new ArgumentNullException(nameof(positionRepository));
 
         // Read Kafka settings from configuration
         _bootstrapServers = _configuration.GetValue<string>("Kafka:BootstrapServers") ?? "localhost:9092";
@@ -148,23 +160,17 @@ public class Worker : BackgroundService
 
         try
         {
-            // 1. Check for idempotency
-            if (await _databaseService.IsMessageProcessedAsync(messageDto.MessageId))
-            {
-                _logger.LogInformation("Message {MessageId} has already been processed. Skipping.", messageDto.MessageId);
-                return;
-            }
+            // Idempotency check is now handled by KafkaMessageProcessorService.
 
-            // 2. Get Asset ID from Ticker
-            var asset = await _databaseService.GetAssetByTickerAsync(messageDto.AssetTicker);
+            // 1. Get Asset ID from Ticker (still needed before calling the processor service)
+            var asset = await _assetRepository.GetByTickerAsync(messageDto.AssetTicker).ConfigureAwait(false);
             if (asset == null)
             {
                 _logger.LogWarning("Asset with ticker {AssetTicker} not found. Skipping message {MessageId}.", messageDto.AssetTicker, messageDto.MessageId);
-                // Consider sending to a dead-letter queue (DLQ) here if configured
                 return;
             }
 
-            // 3. Create Quote domain object
+            // 2. Create Quote domain object
             var quoteDomainObject = new Quote
             {
                 AssetId = asset.Id,
@@ -173,14 +179,12 @@ public class Worker : BackgroundService
                 CreatedDth = DateTime.UtcNow    // System timestamp for record creation
             };
 
-            // 4. Save Quote and MessageId (transactionally)
-            await _databaseService.SaveQuoteAsync(quoteDomainObject, messageDto.MessageId);
-            _logger.LogInformation("Successfully saved quote for AssetId {AssetId} (Ticker: {AssetTicker}), Price: {Price}, MessageId: {MessageId}",
-                asset.Id, asset.Ticker, quoteDomainObject.Price, messageDto.MessageId);
+            // 3. Process message (saves quote and marks message processed atomically)
+            await _kafkaMessageProcessorService.ProcessQuoteMessageAsync(quoteDomainObject, messageDto.MessageId).ConfigureAwait(false);
+            // Log inside ProcessQuoteMessageAsync confirms success or prior processing.
 
-            // 5. Update client positions (calls the SP to update pos.updated_dth)
-            // The SP UpdateClientPositions takes p_asset_id, p_new_price, p_quote_dth
-            await _databaseService.UpdateClientPositionsAsync(quoteDomainObject.AssetId, quoteDomainObject.Price);
+            // 4. Update client positions (this remains a separate step after successful quote processing)
+            await _positionRepository.UpdatePositionsForAssetPriceAsync(quoteDomainObject.AssetId, quoteDomainObject.Price).ConfigureAwait(false);
             _logger.LogInformation("Successfully triggered client position update for AssetId {AssetId} with new price {Price}",
                 quoteDomainObject.AssetId, quoteDomainObject.Price);
 

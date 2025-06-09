@@ -1,22 +1,13 @@
-using ItauChallenge.Domain;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using ItauChallenge.Domain.Repositories;
+using ItauChallenge.Domain; // Added for Quote type
 
 namespace ItauChallenge.Infra
 {
-    public interface IDatabaseService
+    public interface IDatabaseService : IAssetRepository, IOperationRepository, IUserRepository, IPositionRepository, IQuoteRepository, IProcessedMessageRepository, IDbInitializer
     {
-        Task InitializeDatabaseAsync();
-        Task<IEnumerable<Operation>> GetUserOperationsAsync(int userId, int assetId, int days = 30);
-        Task SaveQuoteAsync(Quote quote, string messageId);
-        Task<bool> IsMessageProcessedAsync(string messageId);
-        Task UpdateClientPositionsAsync(int assetId, decimal newPrice);
-        Task<User> CreateUserAsync(User user, decimal brokeragePercent);
-
-        // New methods for API controllers
-        Task<Quote> GetLatestQuoteAsync(int assetId);
-        Task<IEnumerable<Position>> GetClientPositionsAsync(int userId);
-        Task<Asset> GetAssetByIdAsync(int assetId);
-        Task<Asset> GetAssetByTickerAsync(string ticker); // For QuotesConsumer
+        Task SaveQuoteAndMarkMessageProcessedAsync(Quote quote, string messageId);
+        // Existing specific methods in IDatabaseService (if any) that are not part of the new repositories can remain for now,
+        // or be marked as obsolete, or removed if they are now covered by the repository interfaces.
+        // For this task, we assume it will only compose the new interfaces.
     }
 }

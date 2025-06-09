@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace ItauChallenge.Api.Dtos;
+namespace ItauChallenge.Contracts.Dtos; // Updated namespace
 
 public class AssetPositionDto
 {
@@ -9,6 +9,7 @@ public class AssetPositionDto
     public decimal CurrentMarketPrice { get; set; } // Could be fetched live
     public decimal TotalValue { get; set; } // Quantity * CurrentMarketPrice
     public decimal AverageAcquisitionPrice { get; set; } // From domain logic
+    public decimal ProfitOrLoss { get; set; } // Added in ClientApplicationService implementation
 }
 
 public class ClientPositionDto

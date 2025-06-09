@@ -1,5 +1,7 @@
-using ItauChallenge.Application;
+using ItauChallenge.Application.Services;
+using ItauChallenge.Domain.Repositories;
 using ItauChallenge.Infra;
+using ItauChallenge.Application; // For IExternalQuotationService, ResilientQuoteService
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,8 +15,21 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IExternalQuotationService, ExternalQuotationService>(); // From ItauChallenge.Application
 builder.Services.AddSingleton<IResilientQuoteService, ResilientQuoteService>();   // From ItauChallenge.Application
 
-// Register Infrastructure services
-builder.Services.AddScoped<IDatabaseService, DatabaseService>();
+// Register Infrastructure services (DatabaseService provides implementations for all repository interfaces)
+builder.Services.AddScoped<IDatabaseService, DatabaseService>(); // Keep for IDbInitializer if needed by startup
+builder.Services.AddScoped<IAssetRepository, DatabaseService>();
+builder.Services.AddScoped<IOperationRepository, DatabaseService>();
+builder.Services.AddScoped<IUserRepository, DatabaseService>();
+builder.Services.AddScoped<IPositionRepository, DatabaseService>();
+builder.Services.AddScoped<IQuoteRepository, DatabaseService>();
+builder.Services.AddScoped<IProcessedMessageRepository, DatabaseService>();
+builder.Services.AddScoped<IDbInitializer, DatabaseService>(); // DatabaseService itself is the initializer
+
+// Register new Application Services
+builder.Services.AddScoped<IAssetApplicationService, AssetApplicationService>();
+builder.Services.AddScoped<IBrokerageApplicationService, BrokerageApplicationService>();
+builder.Services.AddScoped<IClientApplicationService, ClientApplicationService>();
+builder.Services.AddScoped<IUserApplicationService, UserApplicationService>();
 
 var app = builder.Build();
 

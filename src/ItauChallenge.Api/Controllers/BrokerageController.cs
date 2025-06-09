@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using ItauChallenge.Api.Dtos;
+using ItauChallenge.Contracts.Dtos;
+using ItauChallenge.Application.Services; // Using Application Service Interface
 using System;
 using System.Threading.Tasks;
-
-using ItauChallenge.Infra; // For IDatabaseService
 using Microsoft.Extensions.Logging; // For ILogger
 
 namespace ItauChallenge.Api.Controllers;
@@ -13,12 +12,12 @@ namespace ItauChallenge.Api.Controllers;
 public class BrokerageController : ControllerBase
 {
     private readonly ILogger<BrokerageController> _logger;
-    private readonly IDatabaseService _databaseService;
+    private readonly IBrokerageApplicationService _brokerageApplicationService; // Changed dependency
 
-    public BrokerageController(ILogger<BrokerageController> logger, IDatabaseService databaseService)
+    public BrokerageController(ILogger<BrokerageController> logger, IBrokerageApplicationService brokerageApplicationService) // Changed dependency
     {
-        _logger = logger;
-        _databaseService = databaseService;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _brokerageApplicationService = brokerageApplicationService ?? throw new ArgumentNullException(nameof(brokerageApplicationService));
     }
 
     // GET /api/v1/brokerage/earnings
@@ -27,18 +26,16 @@ public class BrokerageController : ControllerBase
     public async Task<IActionResult> GetBrokerageEarnings([FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
     {
         _logger.LogInformation("API: Requesting brokerage earnings from {StartDate} to {EndDate}", startDate, endDate);
-        // TODO: Implement once brokerage data is available in the schema and service layer.
-        // This would require _databaseService to have a method like GetBrokerageDataAsync(startDate, endDate)
-        // and then summing up relevant fields. The 'op' table currently doesn't have a 'brokerage_fee' column.
-        // If 'op_brokerage' from the original prompt was added to 'op' table, it could be used here.
-        await Task.Delay(10); // Simulate async work
-        var dto = new BrokerageEarningsDto
+        try
         {
-            StartDate = startDate ?? DateTime.UtcNow.AddMonths(-1),
-            EndDate = endDate ?? DateTime.UtcNow,
-            TotalEarnings = new Random().Next(10000, 200000) / 100.0m, // Placeholder
-            Currency = "BRL (Placeholder)"
-        };
-        return Ok(dto);
+            var dto = await _brokerageApplicationService.GetBrokerageEarningsAsync(startDate, endDate).ConfigureAwait(false);
+            _logger.LogInformation("API: Successfully processed brokerage earnings request.");
+            return Ok(dto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "An error occurred while fetching brokerage earnings.");
+            return StatusCode(500, "An internal server error occurred.");
+        }
     }
 }

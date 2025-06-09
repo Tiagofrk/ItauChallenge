@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace ItauChallenge.Api.Dtos
+namespace ItauChallenge.Contracts.Dtos // Updated namespace
 {
     public class CreateUserDto
     {

@@ -11,4 +11,10 @@
     <PackageReference Include="Polly" Version="8.5.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\ItauChallenge.Contracts\ItauChallenge.Contracts.csproj" />
+    <ProjectReference Include="..\ItauChallenge.Domain\ItauChallenge.Domain.csproj" />
+    <ProjectReference Include="..\ItauChallenge.Infra\ItauChallenge.Infra.csproj" />
+  </ItemGroup>
+
 </Project>

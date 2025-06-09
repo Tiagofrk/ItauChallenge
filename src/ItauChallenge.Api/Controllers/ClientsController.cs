@@ -1,11 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
-using ItauChallenge.Api.Dtos;
+using ItauChallenge.Contracts.Dtos;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using ItauChallenge.Infra; // For IDatabaseService
-using ItauChallenge.Domain; // For Position
+using ItauChallenge.Application.Services; // Using Application Service Interface
 using Microsoft.Extensions.Logging; // For ILogger
 
 namespace ItauChallenge.Api.Controllers;
@@ -15,74 +14,100 @@ namespace ItauChallenge.Api.Controllers;
 public class ClientsController : ControllerBase
 {
     private readonly ILogger<ClientsController> _logger;
-    private readonly IDatabaseService _databaseService;
+    private readonly IClientApplicationService _clientApplicationService; // Changed dependency
 
-    public ClientsController(ILogger<ClientsController> logger, IDatabaseService databaseService)
+    public ClientsController(ILogger<ClientsController> logger, IClientApplicationService clientApplicationService) // Changed dependency
     {
-        _logger = logger;
-        _databaseService = databaseService;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clientApplicationService = clientApplicationService ?? throw new ArgumentNullException(nameof(clientApplicationService));
     }
 
     // GET /api/v1/clients/{clientId}/positions
     [HttpGet("{clientId}/positions")]
     [ProducesResponseType(typeof(ClientPositionDto), 200)]
     [ProducesResponseType(400)] // Bad Request for parsing errors
-    [ProducesResponseType(404)]
+    [ProducesResponseType(404)] // Not Found for client or if client has no positions
     public async Task<IActionResult> GetClientPosition(string clientId)
     {
-        _logger.LogInformation("API: Requesting position for Client {ClientId}", clientId);
+        _logger.LogInformation("API: Requesting positions for Client ID {ClientId}", clientId);
+        if (!int.TryParse(clientId, out var parsedClientId))
+        {
+            _logger.LogWarning("Invalid Client ID format: {ClientId}", clientId);
+            return BadRequest("Invalid Client ID format.");
+        }
+
+        try
+        {
+            var clientPositions = await _clientApplicationService.GetClientPositionsAsync(parsedClientId).ConfigureAwait(false);
+
+            // The service returns IEnumerable<ClientPositionDto>. Assuming it returns one item for this specific client.
+            var clientPositionDto = clientPositions.FirstOrDefault();
+
+            if (clientPositionDto == null || !clientPositionDto.Assets.Any())
+            {
+                _logger.LogInformation("No positions found for Client ID {ParsedClientId}", parsedClientId);
+                // Return an empty list in the DTO as per simplified requirement / original controller logic
+                 var emptyDto = new ClientPositionDto
+                {
+                    ClientId = clientId,
+                    Assets = new List<AssetPositionDto>(),
+                    TotalPortfolioValue = 0,
+                    AsOfDate = DateTime.UtcNow
+                };
+                return Ok(emptyDto);
+            }
+
+            _logger.LogInformation("API: Successfully fetched positions for Client ID {ParsedClientId}", parsedClientId);
+            return Ok(clientPositionDto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "An error occurred while fetching positions for Client ID {ClientId}", clientId);
+            return StatusCode(500, "An internal server error occurred.");
+        }
+    }
+
+    // GET /api/v1/clients/{clientId}/assets/{assetTicker}/average-price
+    [HttpGet("{clientId}/assets/{assetTicker}/average-price")]
+    [ProducesResponseType(typeof(AveragePriceDto), 200)]
+    [ProducesResponseType(400)] // Bad Request
+    [ProducesResponseType(404)] // Not Found
+    public async Task<IActionResult> GetAveragePurchasePrice(string clientId, string assetTicker)
+    {
+        _logger.LogInformation("API: Requesting average purchase price for Client {ClientId}, Asset {AssetTicker}", clientId, assetTicker);
+
         if (!int.TryParse(clientId, out var parsedClientId))
         {
             return BadRequest("Invalid Client ID format.");
         }
-
-        var positions = await _databaseService.GetClientPositionsAsync(parsedClientId);
-
-        if (positions == null || !positions.Any())
+        if (string.IsNullOrWhiteSpace(assetTicker))
         {
-            // Return an empty list in the DTO as per simplified requirement, or NotFound
-            var emptyDto = new ClientPositionDto
-            {
-                ClientId = clientId,
-                Assets = new List<AssetPositionDto>(),
-                TotalPortfolioValue = 0,
-                AsOfDate = DateTime.UtcNow
-            };
-            return Ok(emptyDto); // Or NotFound($"No positions found for Client ID {parsedClientId}.");
+            return BadRequest("Asset ticker cannot be empty.");
         }
 
-        var assetPositionsDto = new List<AssetPositionDto>();
-        decimal totalPortfolioValue = 0;
-
-        foreach (var pos in positions)
+        try
         {
-            var assetDetails = await _databaseService.GetAssetByIdAsync(pos.AssetId);
-            string assetTicker = assetDetails?.Ticker ?? pos.AssetId.ToString(); // Fallback to AssetId if no ticker
-
-            var latestQuote = await _databaseService.GetLatestQuoteAsync(pos.AssetId);
-            decimal currentMarketPrice = latestQuote?.Price ?? 0; // Fallback to 0 if no quote
-
-            var assetPosition = new AssetPositionDto
+            var averagePriceDto = await _clientApplicationService.GetAveragePurchasePriceAsync(parsedClientId, assetTicker).ConfigureAwait(false);
+            if (averagePriceDto == null) // Service might return null if asset not found
             {
-                AssetId = assetTicker,
-                Quantity = pos.Quantity,
-                AverageAcquisitionPrice = pos.AveragePrice,
-                CurrentMarketPrice = currentMarketPrice,
-                TotalValue = pos.Quantity * currentMarketPrice
-            };
-            assetPositionsDto.Add(assetPosition);
-            totalPortfolioValue += assetPosition.TotalValue;
+                _logger.LogWarning("Average purchase price not found for Client {ClientId}, Asset {AssetTicker} (asset might not exist).", clientId, assetTicker);
+                return NotFound($"Asset with ticker {assetTicker} not found or no purchase operations by client {clientId}.");
+            }
+            if (averagePriceDto.TotalQuantity == 0 && averagePriceDto.AveragePrice == 0) // No purchase operations found
+            {
+                 _logger.LogInformation("No purchase operations found for Client {ClientId}, Asset {AssetTicker}.", clientId, assetTicker);
+                return NotFound($"No purchase operations found for Client {clientId} and Asset {assetTicker}.");
+            }
+            _logger.LogInformation("API: Successfully fetched average purchase price for Client {ClientId}, Asset {AssetTicker}", clientId, assetTicker);
+            return Ok(averagePriceDto);
         }
-
-        var dto = new ClientPositionDto
+        catch (Exception ex) // Consider specific exceptions if service throws them (e.g., AssetNotFoundException)
         {
-            ClientId = clientId,
-            Assets = assetPositionsDto,
-            TotalPortfolioValue = totalPortfolioValue,
-            AsOfDate = DateTime.UtcNow
-        };
-        return Ok(dto);
+            _logger.LogError(ex, "An error occurred while fetching average purchase price for Client {ClientId}, Asset {AssetTicker}", clientId, assetTicker);
+            return StatusCode(500, "An internal server error occurred.");
+        }
     }
+
 
     // GET /api/v1/clients/top-by-position?count=10
     [HttpGet("top-by-position")]

@@ -3,6 +3,7 @@ using ItauChallenge.Infra;
 using Dapper;
 using MySqlConnector;
 using ItauChallenge.Domain; // Added for Position and other domain models
+using ItauChallenge.Domain.Repositories; // Added for repository interfaces
 
 namespace ItauChallenge.Infra.Tests
 {
@@ -130,7 +131,7 @@ namespace ItauChallenge.Infra.Tests
             }
 
             // Act
-            var operations = await _databaseService.GetUserOperationsAsync(testUserId, testAssetId);
+            var operations = await ((IOperationRepository)_databaseService).GetUserOperationsAsync(testUserId, testAssetId, 30);
 
             // Assert
             Assert.IsNotNull(operations, "Operations list should not be null.");
@@ -178,12 +179,13 @@ namespace ItauChallenge.Infra.Tests
             };
 
             // Act & Assert - Part 1: Save Quote and check IsMessageProcessedAsync
-            await _databaseService.SaveQuoteAsync(testQuote, messageId);
+            await ((IQuoteRepository)_databaseService).SaveAsync(testQuote);
+            await ((IProcessedMessageRepository)_databaseService).MarkAsProcessedAsync(messageId);
 
-            bool isProcessed = await _databaseService.IsMessageProcessedAsync(messageId);
+            bool isProcessed = await ((IProcessedMessageRepository)_databaseService).IsMessageProcessedAsync(messageId);
             Assert.IsTrue(isProcessed, "IsMessageProcessedAsync should return true for the saved messageId.");
 
-            bool isNotProcessed = await _databaseService.IsMessageProcessedAsync($"non-existent-{Guid.NewGuid()}");
+            bool isNotProcessed = await ((IProcessedMessageRepository)_databaseService).IsMessageProcessedAsync($"non-existent-{Guid.NewGuid()}");
             Assert.IsFalse(isNotProcessed, "IsMessageProcessedAsync should return false for a non-existent messageId.");
 
             // Act & Assert - Part 2: Verify quote was saved correctly
@@ -232,7 +234,7 @@ namespace ItauChallenge.Infra.Tests
             decimal expectedPL = (quantity * newMarketPrice) - (quantity * initialAveragePrice); // (10 * 120) - (10 * 100) = 1200 - 1000 = 200
 
             // Act
-            await _databaseService.UpdateClientPositionsAsync(testAssetId, newMarketPrice);
+            await ((IPositionRepository)_databaseService).UpdatePositionsForAssetPriceAsync(testAssetId, newMarketPrice);
 
             // Assert
             using (var connection = new MySqlConnection(_connectionString))
@@ -276,7 +278,7 @@ namespace ItauChallenge.Infra.Tests
             decimal expectedPL = (quantity * newMarketPrice) - (quantity * initialAveragePrice); // (10 * 80) - (10 * 100) = 800 - 1000 = -200
 
             // Act
-            await _databaseService.UpdateClientPositionsAsync(testAssetId, newMarketPrice);
+            await ((IPositionRepository)_databaseService).UpdatePositionsForAssetPriceAsync(testAssetId, newMarketPrice);
 
             // Assert
             using (var connection = new MySqlConnection(_connectionString))
@@ -320,7 +322,7 @@ namespace ItauChallenge.Infra.Tests
             decimal expectedPL = (quantity * newMarketPrice) - (quantity * initialAveragePrice); // (10 * 100) - (10 * 100) = 0
 
             // Act
-            await _databaseService.UpdateClientPositionsAsync(testAssetId, newMarketPrice);
+            await ((IPositionRepository)_databaseService).UpdatePositionsForAssetPriceAsync(testAssetId, newMarketPrice);
 
             // Assert
             using (var connection = new MySqlConnection(_connectionString))
