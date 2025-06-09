@@ -1,18 +1,27 @@
 using ItauChallenge.QuotesConsumer;
-
 using ItauChallenge.Infra; // Required for IDatabaseService, DatabaseService
+using ItauChallenge.Application.Services; // For IKafkaMessageProcessorService & implementation
+using ItauChallenge.Domain.Repositories;  // For Repository interfaces
 
 IHost host = Host.CreateDefaultBuilder(args)
-    .ConfigureServices((hostContext, services) => // Added hostContext for IConfiguration access if needed directly here
+    .ConfigureServices((hostContext, services) =>
     {
-        // IConfiguration is registered by default with CreateDefaultBuilder.
-        // It's available via hostContext.Configuration or can be injected directly into services.
+        // IConfiguration is registered by default.
 
-        // Register IDatabaseService and its implementation
-        // DatabaseService requires IConfiguration, which will be automatically injected by DI container.
+        // Register Infrastructure services (DatabaseService provides implementations for all repository interfaces)
+        // IDatabaseService is used by KafkaMessageProcessorService and for DB initialization.
         services.AddScoped<IDatabaseService, DatabaseService>();
 
-        // Worker is already registered to be created via DI and receive its dependencies.
+        // Specific repositories needed by Worker and KafkaMessageProcessorService
+        services.AddScoped<IAssetRepository, DatabaseService>();
+        services.AddScoped<IPositionRepository, DatabaseService>();
+        services.AddScoped<IProcessedMessageRepository, DatabaseService>();
+        // IQuoteRepository is not directly injected into Worker or KafkaMessageProcessorService with the new design,
+        // as SaveQuoteAndMarkMessageProcessedAsync on IDatabaseService handles the quote saving.
+
+        // Register Application Services
+        services.AddScoped<IKafkaMessageProcessorService, KafkaMessageProcessorService>();
+
         services.AddHostedService<Worker>();
     })
     .Build();

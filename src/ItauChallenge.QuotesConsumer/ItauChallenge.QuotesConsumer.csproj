@@ -9,11 +9,13 @@
 
   <ItemGroup>
     <PackageReference Include="Confluent.Kafka" Version="2.10.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.5" /> <!-- Updated version -->
     <PackageReference Include="Polly" Version="8.5.2" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ItauChallenge.Application\ItauChallenge.Application.csproj" />
+    <ProjectReference Include="..\ItauChallenge.Domain\ItauChallenge.Domain.csproj" />
     <ProjectReference Include="..\ItauChallenge.Infra\ItauChallenge.Infra.csproj" />
   </ItemGroup>
 

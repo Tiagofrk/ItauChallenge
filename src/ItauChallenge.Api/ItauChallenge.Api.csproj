@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ItauChallenge.Application\ItauChallenge.Application.csproj" />
+    <ProjectReference Include="..\ItauChallenge.Contracts\ItauChallenge.Contracts.csproj" />
     <ProjectReference Include="..\ItauChallenge.Infra\ItauChallenge.Infra.csproj" />
   </ItemGroup>
 
