@@ -11,7 +11,7 @@ RUN dotnet restore "ItauChallenge.Api/ItauChallenge.Api.csproj"
 # Copia todo o código fonte e publica a aplicação
 # WORKDIR /src # Already in /src
 COPY . .
-WORKDIR "/src/ItauChallenge.Api"
+WORKDIR "/src/src/ItauChallenge.Api"
 RUN dotnet publish "ItauChallenge.Api.csproj" -c Release -o /app/publish
 
 # Estágio 2: Execução da aplicação
