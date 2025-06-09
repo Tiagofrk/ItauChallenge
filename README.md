@@ -92,7 +92,7 @@ O resultado da decodificação desses dados é um fluxo de bits (zeros e uns) qu
 
 ### Pré-requisitos
 
-- É necessário ter o Docker Compose instalado em seu sistema.
+- É necessário ter o Docker Desktop instalado em seu sistema.
 
 ### Como Construir e Executar
 
