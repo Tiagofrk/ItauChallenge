@@ -79,3 +79,57 @@ Contribuições são bem-vindas! Sinta-se à vontade para enviar um pull request
 ## Licença
 
 Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE.txt](LICENSE.txt) para detalhes.
+
+## Running with Docker
+
+This section describes how to run the application and database using Docker and Docker Compose.
+
+### Prerequisites
+
+- Make sure you have Docker Desktop (or Docker Engine with Docker Compose) installed on your system.
+
+### Environment Setup
+
+1.  Navigate to the `deployment` directory:
+    ```bash
+    cd deployment
+    ```
+2.  Create a `.env` file in this directory (`deployment/.env`). This file will store the database password.
+3.  Add the following line to the `.env` file, replacing `yourstrongpassword` with a secure password of your choice:
+    ```
+    DB_PASSWORD=yourstrongpassword
+    ```
+    **Note:** This password will be used for the `root` user of the MySQL database instance.
+
+### How to Build and Run
+
+1.  Navigate to the root directory of the project (the directory containing the `ItauChallenge.sln` file).
+2.  Run the following command to build the Docker images and start the services (API and database) in detached mode:
+    ```bash
+    docker-compose -f deployment/docker-compose.yml up --build -d
+    ```
+    - The `-f deployment/docker-compose.yml` flag specifies the path to the Docker Compose file.
+    - `--build` forces Docker to rebuild the images if there are any changes in the `Dockerfile` or the application code.
+    - `-d` runs the containers in detached mode (in the background).
+
+### Accessing the Application
+
+-   **API:** Once the containers are running, the API should be accessible at `http://localhost:8080`.
+-   **Database:** The MySQL database will be running on `localhost:3306`. You can connect to it using a database client with the following details:
+    -   **Host:** `localhost`
+    -   **Port:** `3306`
+    -   **User:** `root`
+    -   **Password:** The `DB_PASSWORD` you set in the `.env` file.
+    -   **Database Name:** `itau_challenge_db`
+
+### How to Stop
+
+1.  Ensure you are in the project root directory.
+2.  To stop and remove the containers, networks, and volumes created by `docker-compose`, run:
+    ```bash
+    docker-compose -f deployment/docker-compose.yml down
+    ```
+    If you want to remove the database data volume as well (all data will be lost), you can use:
+    ```bash
+    docker-compose -f deployment/docker-compose.yml down -v
+    ```
