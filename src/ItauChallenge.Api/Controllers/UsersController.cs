@@ -74,4 +74,35 @@ public class UsersController : ControllerBase
         };
         return Ok(dto);
     }
+
+    [HttpPost]
+    [ProducesResponseType(typeof(User), 201)] // Assuming User domain object is returned
+    [ProducesResponseType(400)]
+    public async Task<IActionResult> CreateUser([FromBody] CreateUserDto createUserDto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var user = new User
+        {
+            Name = createUserDto.Name,
+            Email = createUserDto.Email
+            // CreatedDth will be set by the service/database
+        };
+
+        // The service method now takes brokeragePercent as a separate parameter
+        var createdUser = await _databaseService.CreateUserAsync(user, createUserDto.BrokeragePercent);
+
+        // Return a 201 Created response with the location of the new resource and the resource itself
+        // The location URL might need adjustment based on how one would typically retrieve a single user (e.g., GET /api/v1/users/{id})
+        // For now, returning the created user object directly.
+        // A common practice is return CreatedAtAction or CreatedAtRoute.
+        // Let's assume a GetUserById method exists or will exist for the Location header.
+        // If not, we can return Ok(createdUser) or just the createdUser for simplicity as per initial thought.
+        // For now, returning 201 with the object. A `Location` header is best practice.
+        // To keep it simple for now, and since there isn't a GET endpoint for a single user yet:
+        return StatusCode(201, createdUser);
+    }
 }
