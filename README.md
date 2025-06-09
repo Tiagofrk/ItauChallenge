@@ -72,33 +72,19 @@ cd test/ItauChallenge.Domain.Tests # Exemplo
 dotnet test
 ```
 
-## Contribuindo
-
-Contribuições são bem-vindas! Sinta-se à vontade para enviar um pull request ou abrir uma issue. (Placeholder - pode ser expandido posteriormente com diretrizes mais específicas).
-
-## Licença
-
-Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE.txt](LICENSE.txt) para detalhes.
-
 ## Easter Eggs
 
 Aqui detalhamos algumas das mensagens ocultas e seus significados:
 
-### Mensagem Binária Inicial
-
-A sequência `01000111 01101111 01110011 01110100 01101111 00100000 01100100 01100101 00100000 01110011 01100101 01110010 00100000 01100011 01101000 01100001 01101101 01100001 01100100 01101111 00100000 01100100 01100101 00100000 01000011 01100001 01101101 01100001 01110010 11000011 10100000` é uma representação de caracteres em código ASCII. Ao converter cada byte para seu caractere correspondente, a mensagem revelada é: "Gosto de ser chamado de Camarada".
-
 ### Imagem do Coelho Branco
 
-A imagem de um coelho branco é uma clara alusão à expressão "seguir o coelho branco", popularizada pelo filme Matrix, que por sua vez se inspira em Alice no País das Maravilhas. Esta pista sugere que há mais para descobrir ou investigar mais a fundo no contexto do desafio.
+A imagem de um coelho branco é uma clara alusão à expressão "seguir o coelho branco", popularizada pelo filme Matrix, que por sua vez se inspira em Alice no País das Maravilhas.
 
 ### Mensagem Hexadecimal e RLE
 
-A mensagem em hexadecimal `4120756c74696d61206c696e686120657374c3a120636f6d206f2062696ec3a172696f20656d20524c45` também é decodificada convertendo os valores hexadecimais para caracteres ASCII. O resultado é: "A ultima linha está com o binário em RLE". Isso indica que a próxima etapa de decodificação envolve a técnica de Run-Length Encoding.
+A mensagem em hexadecimal `4120756c74696d61206c696e686120657374c3a120636f6d206f2062696ec3a172696f20656d20524c45` é decodificada convertendo os valores hexadecimais para caracteres ASCII. O resultado é: "A ultima linha está com o binário em RLE". Isso indica que a próxima etapa de decodificação envolve a técnica de Run-Length Encoding.
 
 ### Decodificação Final do RLE
-
-Esta frase é a instrução para decodificar o grande bloco de dados que vem a seguir. RLE significa Run-Length Encoding, uma técnica de compressão que representa sequências de dados repetidos.
 
 O resultado da decodificação desses dados é um fluxo de bits (zeros e uns) que, quando formatado corretamente, revela uma imagem em arte ASCII do coelho branco, que também é mostrado como uma imagem no documento.
 
@@ -115,3 +101,11 @@ O resultado da decodificação desses dados é um fluxo de bits (zeros e uns) qu
    ```bash
    docker-compose up --build -d
    ```
+
+## Contribuindo
+
+Contribuições são bem-vindas! Sinta-se à vontade para enviar um pull request ou abrir uma issue. (Placeholder - pode ser expandido posteriormente com diretrizes mais específicas).
+
+## Licença
+
+Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE.txt](LICENSE.txt) para detalhes.
