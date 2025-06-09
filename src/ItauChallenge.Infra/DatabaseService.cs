@@ -178,7 +178,8 @@ namespace ItauChallenge.Infra
                 FROM op
                 WHERE user_id = @UserId
                   AND asset_id = @AssetId
-                  AND operation_dth >= DATE_SUB(NOW(), INTERVAL @Days DAY);";
+                  AND operation_dth >= DATE_SUB(NOW(), INTERVAL @Days DAY)
+                ORDER BY operation_dth DESC;";
 
             // The query in the prompt used op_id, op_usr_id etc. but the table uses id, user_id
             // Corrected to use actual column names from 'op' table.
@@ -248,19 +249,17 @@ namespace ItauChallenge.Infra
 
         public async Task UpdateClientPositionsAsync(int assetId, decimal newPrice)
         {
-            // The original SQL in the prompt was:
-            // UPDATE pos p SET p.pos_pl = (p.pos_quantity * @NewPrice) - (p.pos_quantity * p.pos_avg_price) WHERE p.pos_ast_id = @AssetId;
-            // This calculates a 'Profit/Loss' (PL) and updates a 'pos_pl' column.
-            // However, the 'pos' table schema is: id, user_id, asset_id, quantity, average_price, updated_dth, created_dth.
-            // There is no 'pos_pl' column.
-            // The Stored Procedure 'UpdateClientPositions' in scripts.txt is:
-            // UPDATE pos SET updated_dth = p_quote_dth WHERE asset_id = p_asset_id;
-            // This SP is meant to be called when a new quote arrives.
-            // The request for this specific method `UpdateClientPositionsAsync` seems to be a direct client positions update based on new price,
+            // Updates client positions' P&L based on a new asset price.
+            // Note: Average price (average_price) is generally affected by buy/sell operations,
+            // not solely by real-time quote fluctuations. This method updates P&L and the
+            // position's update timestamp based on new quotes.
             const string query = @"
-        UPDATE pos p
-        SET p.pos_pl = (p.pos_quantity * @NewPrice) - (p.pos_quantity * p.pos_avg_price)
-        WHERE p.pos_ast_id = @AssetId;";
+        UPDATE pos
+        SET
+            pos_pl = (quantity * @NewPrice) - (quantity * average_price),
+            updated_dth = NOW()
+        WHERE
+            asset_id = @AssetId;";
 
     using (var connection = new MySqlConnection(_connectionString))
     {
@@ -297,6 +296,7 @@ namespace ItauChallenge.Infra
                     asset_id AS AssetId,
                     quantity AS Quantity,
                     average_price AS AveragePrice,
+                    pos_pl AS PL,
                     updated_dth AS UpdatedDth,
                     created_dth AS CreatedDth
                 FROM pos

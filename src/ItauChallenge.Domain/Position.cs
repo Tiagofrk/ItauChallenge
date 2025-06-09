@@ -9,6 +9,7 @@ namespace ItauChallenge.Domain
         public int AssetId { get; set; }
         public int Quantity { get; set; }
         public decimal AveragePrice { get; set; }
+        public decimal PL { get; set; } // Added property for Profit and Loss
         public DateTime UpdatedDth { get; set; }
         public DateTime CreatedDth { get; set; }
 

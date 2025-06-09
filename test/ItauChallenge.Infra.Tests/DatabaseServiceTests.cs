@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using ItauChallenge.Infra;
 using Dapper;
 using MySqlConnector;
+using ItauChallenge.Domain; // Added for Position and other domain models
 
 namespace ItauChallenge.Infra.Tests
 {
@@ -198,6 +199,139 @@ namespace ItauChallenge.Infra.Tests
                 // MySQL DATETIME(6) precision can lead to minor differences if not careful with rounding or exact storage.
                 // Compare with a tolerance or ensure DateTimeKind is consistent.
                 Assert.IsTrue(Math.Abs((savedQuote.QuoteDth - quoteTime).TotalSeconds) < 1, "QuoteDth should match the saved quote's timestamp closely.");
+            }
+        }
+
+        [TestMethod]
+        public async Task UpdateClientPositionsAsync_ShouldCalculatePositivePL()
+        {
+            // Arrange
+            int testUserId;
+            int testAssetId;
+            decimal initialAveragePrice = 100m;
+            int quantity = 10;
+            decimal initialPL = 0m; // Assuming P&L starts at 0 for a new position record
+            DateTime initialUpdatedDth;
+
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                testUserId = await connection.ExecuteScalarAsync<int>(
+                    "INSERT INTO usr (name, email, created_dth) VALUES ('Test User PL', 'testpl@example.com', NOW()); SELECT LAST_INSERT_ID();");
+                testAssetId = await connection.ExecuteScalarAsync<int>(
+                    "INSERT INTO ast (ticker, name, type, created_dth) VALUES ('TSTPL', 'Test PL Asset', 'Stock', NOW()); SELECT LAST_INSERT_ID();");
+
+                initialUpdatedDth = DateTime.UtcNow.AddDays(-1); // Ensure it's in the past
+
+                await connection.ExecuteAsync(
+                    @"INSERT INTO pos (user_id, asset_id, quantity, average_price, pos_pl, updated_dth, created_dth)
+                      VALUES (@UserId, @AssetId, @Quantity, @AveragePrice, @PL, @UpdatedDth, NOW());",
+                    new { UserId = testUserId, AssetId = testAssetId, Quantity = quantity, AveragePrice = initialAveragePrice, PL = initialPL, UpdatedDth = initialUpdatedDth });
+            }
+
+            decimal newMarketPrice = 120m; // New price is higher
+            decimal expectedPL = (quantity * newMarketPrice) - (quantity * initialAveragePrice); // (10 * 120) - (10 * 100) = 1200 - 1000 = 200
+
+            // Act
+            await _databaseService.UpdateClientPositionsAsync(testAssetId, newMarketPrice);
+
+            // Assert
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                var updatedPosition = await connection.QuerySingleOrDefaultAsync<Position>(
+                    "SELECT user_id UserId, asset_id AssetId, quantity Quantity, average_price AveragePrice, pos_pl PL, updated_dth UpdatedDth FROM pos WHERE user_id = @UserId AND asset_id = @AssetId",
+                    new { UserId = testUserId, AssetId = testAssetId });
+
+                Assert.IsNotNull(updatedPosition, "Position should exist.");
+                Assert.AreEqual(expectedPL, updatedPosition.PL, "P&L was not calculated correctly for positive scenario.");
+                Assert.IsTrue(updatedPosition.UpdatedDth > initialUpdatedDth, "UpdatedDth should have been updated to a more recent time.");
+            }
+        }
+
+        [TestMethod]
+        public async Task UpdateClientPositionsAsync_ShouldCalculateNegativePL()
+        {
+            // Arrange
+            int testUserId;
+            int testAssetId;
+            decimal initialAveragePrice = 100m;
+            int quantity = 10;
+            decimal initialPL = 0m;
+            DateTime initialUpdatedDth;
+
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                testUserId = await connection.ExecuteScalarAsync<int>(
+                    "INSERT INTO usr (name, email, created_dth) VALUES ('Test User NegPL', 'testnegpl@example.com', NOW()); SELECT LAST_INSERT_ID();");
+                testAssetId = await connection.ExecuteScalarAsync<int>(
+                    "INSERT INTO ast (ticker, name, type, created_dth) VALUES ('TSTNPL', 'Test Neg PL Asset', 'Stock', NOW()); SELECT LAST_INSERT_ID();");
+                initialUpdatedDth = DateTime.UtcNow.AddDays(-1);
+
+                await connection.ExecuteAsync(
+                    @"INSERT INTO pos (user_id, asset_id, quantity, average_price, pos_pl, updated_dth, created_dth)
+                      VALUES (@UserId, @AssetId, @Quantity, @AveragePrice, @PL, @UpdatedDth, NOW());",
+                    new { UserId = testUserId, AssetId = testAssetId, Quantity = quantity, AveragePrice = initialAveragePrice, PL = initialPL, UpdatedDth = initialUpdatedDth });
+            }
+
+            decimal newMarketPrice = 80m; // New price is lower
+            decimal expectedPL = (quantity * newMarketPrice) - (quantity * initialAveragePrice); // (10 * 80) - (10 * 100) = 800 - 1000 = -200
+
+            // Act
+            await _databaseService.UpdateClientPositionsAsync(testAssetId, newMarketPrice);
+
+            // Assert
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                var updatedPosition = await connection.QuerySingleOrDefaultAsync<Position>(
+                     "SELECT user_id UserId, asset_id AssetId, quantity Quantity, average_price AveragePrice, pos_pl PL, updated_dth UpdatedDth FROM pos WHERE user_id = @UserId AND asset_id = @AssetId",
+                    new { UserId = testUserId, AssetId = testAssetId });
+
+                Assert.IsNotNull(updatedPosition, "Position should exist.");
+                Assert.AreEqual(expectedPL, updatedPosition.PL, "P&L was not calculated correctly for negative scenario.");
+                Assert.IsTrue(updatedPosition.UpdatedDth > initialUpdatedDth, "UpdatedDth should have been updated.");
+            }
+        }
+
+        [TestMethod]
+        public async Task UpdateClientPositionsAsync_ShouldCalculateZeroPL()
+        {
+            // Arrange
+            int testUserId;
+            int testAssetId;
+            decimal initialAveragePrice = 100m;
+            int quantity = 10;
+            decimal initialPL = 50m; // Start with some non-zero P&L
+            DateTime initialUpdatedDth;
+
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                testUserId = await connection.ExecuteScalarAsync<int>(
+                    "INSERT INTO usr (name, email, created_dth) VALUES ('Test User ZeroPL', 'testzeropl@example.com', NOW()); SELECT LAST_INSERT_ID();");
+                testAssetId = await connection.ExecuteScalarAsync<int>(
+                    "INSERT INTO ast (ticker, name, type, created_dth) VALUES ('TSTZPL', 'Test Zero PL Asset', 'Stock', NOW()); SELECT LAST_INSERT_ID();");
+                initialUpdatedDth = DateTime.UtcNow.AddDays(-1);
+
+                await connection.ExecuteAsync(
+                    @"INSERT INTO pos (user_id, asset_id, quantity, average_price, pos_pl, updated_dth, created_dth)
+                      VALUES (@UserId, @AssetId, @Quantity, @AveragePrice, @PL, @UpdatedDth, NOW());",
+                    new { UserId = testUserId, AssetId = testAssetId, Quantity = quantity, AveragePrice = initialAveragePrice, PL = initialPL, UpdatedDth = initialUpdatedDth });
+            }
+
+            decimal newMarketPrice = 100m; // New price is same as average
+            decimal expectedPL = (quantity * newMarketPrice) - (quantity * initialAveragePrice); // (10 * 100) - (10 * 100) = 0
+
+            // Act
+            await _databaseService.UpdateClientPositionsAsync(testAssetId, newMarketPrice);
+
+            // Assert
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                var updatedPosition = await connection.QuerySingleOrDefaultAsync<Position>(
+                    "SELECT user_id UserId, asset_id AssetId, quantity Quantity, average_price AveragePrice, pos_pl PL, updated_dth UpdatedDth FROM pos WHERE user_id = @UserId AND asset_id = @AssetId",
+                    new { UserId = testUserId, AssetId = testAssetId });
+
+                Assert.IsNotNull(updatedPosition, "Position should exist.");
+                Assert.AreEqual(expectedPL, updatedPosition.PL, "P&L was not calculated correctly for zero P&L scenario.");
+                Assert.IsTrue(updatedPosition.UpdatedDth > initialUpdatedDth, "UpdatedDth should have been updated.");
             }
         }
     }
