@@ -267,6 +267,22 @@ namespace ItauChallenge.Infra
     }
 }
 
+        public async Task<User> CreateUserAsync(User user, decimal brokeragePercent)
+        {
+            const string sql = @"
+                INSERT INTO usr (usr_name, usr_email, usr_brokerage_pct)
+                VALUES (@Name, @Email, @BrokeragePercent);
+                SELECT LAST_INSERT_ID();";
+
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                var newUserId = await connection.ExecuteScalarAsync<int>(sql, new { user.Name, user.Email, BrokeragePercent = brokeragePercent });
+                user.Id = newUserId;
+                user.CreatedDth = DateTime.UtcNow;
+                return user;
+            }
+        }
+
         // New methods for API controllers
         public async Task<Quote> GetLatestQuoteAsync(int assetId)
         {

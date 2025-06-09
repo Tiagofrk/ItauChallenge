@@ -11,6 +11,7 @@ namespace ItauChallenge.Infra
         Task SaveQuoteAsync(Quote quote, string messageId);
         Task<bool> IsMessageProcessedAsync(string messageId);
         Task UpdateClientPositionsAsync(int assetId, decimal newPrice);
+        Task<User> CreateUserAsync(User user, decimal brokeragePercent);
 
         // New methods for API controllers
         Task<Quote> GetLatestQuoteAsync(int assetId);
