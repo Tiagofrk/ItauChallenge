@@ -29,6 +29,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "deployment", "deployment", 
 		deployment\docker-compose.yml = deployment\docker-compose.yml
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ItauChallenge.Contracts", "src\ItauChallenge.Contracts\ItauChallenge.Contracts.csproj", "{9D219FC7-1C4D-470A-8FA0-6E44A001AE95}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -67,6 +69,10 @@ Global
 		{C693B8DC-9CEB-44D9-BBD2-0877C064388E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C693B8DC-9CEB-44D9-BBD2-0877C064388E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C693B8DC-9CEB-44D9-BBD2-0877C064388E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9D219FC7-1C4D-470A-8FA0-6E44A001AE95}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D219FC7-1C4D-470A-8FA0-6E44A001AE95}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D219FC7-1C4D-470A-8FA0-6E44A001AE95}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D219FC7-1C4D-470A-8FA0-6E44A001AE95}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -80,6 +86,7 @@ Global
 		{767F3A27-8F70-4428-A1A6-DD1B48E37C03} = {740B7182-3EAF-4D0D-8B81-D2BE6DE6F951}
 		{DBB6FDD6-AF41-42AB-8F21-3C676C801995} = {D3DC8173-18A8-4D01-A44F-100BC1D8BA28}
 		{C693B8DC-9CEB-44D9-BBD2-0877C064388E} = {D3DC8173-18A8-4D01-A44F-100BC1D8BA28}
+		{9D219FC7-1C4D-470A-8FA0-6E44A001AE95} = {D3DC8173-18A8-4D01-A44F-100BC1D8BA28}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4A370C58-C124-4813-B397-55264B0B9250}
